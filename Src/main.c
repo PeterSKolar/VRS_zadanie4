@@ -184,6 +184,13 @@ void SystemClock_Config(void)
   LL_Init1msTick(8000000);
   LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK);
   LL_SetSystemCoreClock(8000000);
+  SysTick->CTRL = 0U;							// CLOCK DOESENT INCREMENT WIDOUGHT THIS FOR SOME REASON
+    SysTick->LOAD = 8000000U / 1000U - 1U;
+    SysTick->VAL = 0U;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
+                    SysTick_CTRL_TICKINT_Msk |
+                    SysTick_CTRL_ENABLE_Msk;
+
 }
 
 /* USER CODE BEGIN 4 */
