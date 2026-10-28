@@ -48,7 +48,7 @@ LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_6);
 
 // Clear pending flags
 LL_DMA_ClearFlag_GI6(DMA1);
-LL_DMA_ClearFlag_GI7(DMA1);
+
 // Reset the receive buffer address
 LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_6, (uint32_t)bufferUSART2dma);
 // Reset transfer length

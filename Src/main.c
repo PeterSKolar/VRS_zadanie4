@@ -57,6 +57,7 @@ static uint16_t uppercaseCount = 0U;
 static uint16_t lowercaseCount = 0U;
 
 static uint8_t txBuffer[128];
+volatile uint32_t systemTickMs = 0U;
 
 /* USER CODE END PV */
 
@@ -127,16 +128,23 @@ int main(void)
 #if POLLING
 	//Polling for new data, no interrupts
 	USART2_CheckDmaReception();
-	USART2_PutBuffer(tx_data, sizeof(tx_data));
 #endif
 
 	// Report DMA buffer usage
-	uint32_t currentTime = HAL_GetTick();
+	uint32_t currentTime = systemTickMs;
 	if ((currentTime - lastReportTime) >= REPORT_INTERVAL_MS)
 	{
 		lastReportTime = currentTime;
 		reportDmaUsage();
 	}
+
+#if POLLING
+
+	LL_mDelay(1);
+#else
+	/* Interrupt mode: allow interrupts to process reception */
+	__WFI();
+#endif
 
     /* USER CODE BEGIN 3 */
   }
@@ -225,8 +233,8 @@ void receive_dma_data(const uint8_t* data, uint16_t len)
 			messageLength = 0U;
 			continue;
 		}
-		/* * Count characters after '#'. * If 35 characters pass without '$', discard the * incomplete message and wait for another '#'. */
-		if (messageLength >= MESSAGE_MAX_LENGTH + 1U)
+
+		if (messageLength >= MESSAGE_MAX_LENGTH)
 		{
 			receivingMessage = 0U;
 			messageLength = 0U;
@@ -250,6 +258,42 @@ static void processCompletedMessage(void)
 		USART2_PutBuffer(txBuffer, (uint8_t)length);
 	}
 }
+
+static void reportDmaUsage(void)
+{
+	uint16_t used = USART2_GetDmaRxUsage();
+
+
+	int length = snprintf( (char *)txBuffer, sizeof(txBuffer),
+			"DMA RX buffer: %u/%u bytes used\r\n",
+			(unsigned int)used, (unsigned int)DMA_USART2_BUFFER_SIZE );
+
+	if (length > 0 && length < (int)sizeof(txBuffer))
+	{
+		USART2_PutBuffer(txBuffer, (uint8_t)length);
+	}
+
+}
+
+
+static void sendText(const char *text)
+{
+	size_t length = strlen(text);
+
+
+	if (length > sizeof(txBuffer))
+	{
+		length = sizeof(txBuffer);
+	}
+
+
+	if (length > 0U)
+	{
+		USART2_PutBuffer((uint8_t *)text, (uint8_t)length);
+	}
+
+}
+
 
 /* USER CODE END 4 */
 
