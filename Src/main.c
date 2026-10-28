@@ -23,6 +23,8 @@
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
+#include <stdio.h>
+#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -47,9 +49,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-  uint8_t tx_data[] = "Data to send over UART DMA!\n\r";
-  uint8_t rx_data[10];
-  uint8_t count = 0;
+static char messageBuffer[MESSAGE_MAX_LENGTH + 2U];
+static uint16_t messageLength = 0U;
+static uint8_t receivingMessage = 0U;
+
+static uint16_t uppercaseCount = 0U;
+static uint16_t lowercaseCount = 0U;
+
+static uint8_t txBuffer[128];
 
 /* USER CODE END PV */
 
@@ -57,6 +64,10 @@
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void receive_dma_data(const uint8_t* data, uint16_t len);
+
+static void sendText(const char *text);
+static void processCompletedMessage(void);
+static void reportDmaUsage(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -104,6 +115,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   USART2_RegisterCallback(receive_dma_data);
 
+  uint32_t lastReportTime = 0U;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -114,11 +127,16 @@ int main(void)
 #if POLLING
 	//Polling for new data, no interrupts
 	USART2_CheckDmaReception();
-	LL_mDelay(10);
-#else
 	USART2_PutBuffer(tx_data, sizeof(tx_data));
-	LL_mDelay(1000);
 #endif
+
+	// Report DMA buffer usage
+	uint32_t currentTime = HAL_GetTick();
+	if ((currentTime - lastReportTime) >= REPORT_INTERVAL_MS)
+	{
+		lastReportTime = currentTime;
+		reportDmaUsage();
+	}
 
     /* USER CODE BEGIN 3 */
   }
@@ -163,13 +181,74 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void receive_dma_data(const uint8_t* data, uint16_t len)
 {
-    for(uint8_t i = 0; i < len; i++)
-    {
-    	if(*(data+i) == '1')
+	for (uint16_t i = 0U; i < len; i++)
+	{
+		char c = (char)data[i];
+	// wait for message
+		if (receivingMessage == 0U)
 		{
-			count++;
+			if (c == '#')
+			{
+				receivingMessage = 1U;
+				messageLength = 0U;
+				uppercaseCount = 0U;
+				lowercaseCount = 0U;
+				messageBuffer[messageLength++] = c;
+			}
+			continue;
 		}
-    }
+
+		if (c == '#')
+		{
+			messageLength = 0U;
+			uppercaseCount = 0U;
+			lowercaseCount = 0U;
+			messageBuffer[messageLength++] = c;
+			continue;
+		}
+
+		if (c >= 'A' && c <= 'Z')
+		{
+			uppercaseCount++;
+		}
+		else if (c >= 'a' && c <= 'z')
+		{
+			lowercaseCount++;
+		}
+
+		if (c == '$')
+		{
+			messageBuffer[messageLength++] = c;
+			messageBuffer[messageLength] = '\0';
+			receivingMessage = 0U;
+			processCompletedMessage();
+			messageLength = 0U;
+			continue;
+		}
+		/* * Count characters after '#'. * If 35 characters pass without '$', discard the * incomplete message and wait for another '#'. */
+		if (messageLength >= MESSAGE_MAX_LENGTH + 1U)
+		{
+			receivingMessage = 0U;
+			messageLength = 0U;
+			uppercaseCount = 0U;
+			lowercaseCount = 0U;
+			continue;
+		}
+		messageBuffer[messageLength++] = c;
+	}
+}
+
+static void processCompletedMessage(void)
+{
+	int length = snprintf( (char *)txBuffer, sizeof(txBuffer),
+			"Message: %s | Uppercase: %u | Lowercase: %u\r\n",
+			messageBuffer, (unsigned int)uppercaseCount, (unsigned int)lowercaseCount );
+
+
+	if (length > 0 && length < (int)sizeof(txBuffer))
+	{
+		USART2_PutBuffer(txBuffer, (uint8_t)length);
+	}
 }
 
 /* USER CODE END 4 */

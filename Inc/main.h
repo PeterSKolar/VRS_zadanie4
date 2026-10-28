@@ -40,6 +40,9 @@ extern "C" {
 #include "stm32f3xx.h"
 #include "stm32f3xx_ll_gpio.h"
 
+#define MESSAGE_MAX_LENGTH 35U
+#define REPORT_INTERVAL_MS 1000U
+
 #if defined(USE_FULL_ASSERT)
 #include "stm32_assert.h"
 #endif /* USE_FULL_ASSERT */
