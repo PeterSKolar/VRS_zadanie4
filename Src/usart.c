@@ -39,6 +39,23 @@ uint16_t remaining;
 remaining = LL_DMA_GetDataLength(DMA1, LL_DMA_CHANNEL_6);
 
 return DMA_USART2_BUFFER_SIZE - remaining;
+
+}
+
+static void USART2_RestartRxDma(void)
+{
+LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_6);
+
+// Clear pending flags
+LL_DMA_ClearFlag_GI6(DMA1);
+LL_DMA_ClearFlag_GI7(DMA1);
+// Reset the receive buffer address
+LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_6, (uint32_t)bufferUSART2dma);
+// Reset transfer length
+LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_6, DMA_USART2_BUFFER_SIZE);
+// Transfer
+LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_6);
+
 }
 
 
@@ -129,6 +146,15 @@ void MX_USART2_UART_Init(void)
 
 void USART2_PutBuffer(uint8_t *buffer, uint8_t length)
 {
+
+	if (buffer == 0 || length == 0) return;
+
+
+	if (LL_DMA_IsEnabledChannel(DMA1, LL_DMA_CHANNEL_7)) return;
+
+	LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_7);
+	LL_DMA_ClearFlag_GI7(DMA1);
+
 	LL_DMA_SetMemoryAddress(DMA1, LL_DMA_CHANNEL_7, (uint32_t)buffer);
 
 	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_7, length);
@@ -145,31 +171,32 @@ void USART2_CheckDmaReception(void)
 
 	static uint16_t old_pos = 0;
 
-	uint16_t pos = DMA_USART2_BUFFER_SIZE - LL_DMA_GetDataLength(DMA1, LL_DMA_CHANNEL_6);
+	uint16_t pos;
+	uint16_t remaining;
+	uint8_t idle;
+	uint8_t transfer_complete;
 
-	if (pos != old_pos)
+	idle = ((USART2->ISR & LL_USART_ISR_IDLE) != 0U);
+	transfer_complete = LL_DMA_IsActiveFlag_TC6(DMA1);
+
+	remaining = LL_DMA_GetDataLength( DMA1, LL_DMA_CHANNEL_6 );
+
+	pos = DMA_USART2_BUFFER_SIZE - remaining;
+
+ //
+	if (pos > old_pos)
 	{
-		if (pos > old_pos)
-		{
-			USART2_ProcessData(&bufferUSART2dma[old_pos], pos - old_pos);
-		}
-		else
-		{
-			USART2_ProcessData(&bufferUSART2dma[old_pos], DMA_USART2_BUFFER_SIZE - old_pos);
-
-			if (pos > 0)
-			{
-				USART2_ProcessData(&bufferUSART2dma[0], pos);
-			}
-		}
+		USART2_ProcessData( &bufferUSART2dma[old_pos], pos - old_pos );
+		old_pos = pos;
 	}
-
-	old_pos = pos;
-
-	if (old_pos == DMA_USART2_BUFFER_SIZE)
+ // transfer finished
+	if (idle || transfer_complete)
 	{
-		old_pos = 0;
-	}
+		if (idle) LL_USART_ClearFlag_IDLE(USART2);
+
+		USART2_RestartRxDma();
+		old_pos = 0; }
+
 }
 
 
