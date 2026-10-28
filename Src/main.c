@@ -66,7 +66,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void receive_dma_data(const uint8_t* data, uint16_t len);
 
-static void sendText(const char *text);
+
 static void processCompletedMessage(void);
 static void reportDmaUsage(void);
 /* USER CODE END PFP */
@@ -282,24 +282,6 @@ static void reportDmaUsage(void)
 
 }
 
-
-static void sendText(const char *text)
-{
-	size_t length = strlen(text);
-
-
-	if (length > sizeof(txBuffer))
-	{
-		length = sizeof(txBuffer);
-	}
-
-
-	if (length > 0U)
-	{
-		USART2_PutBuffer((uint8_t *)text, (uint8_t)length);
-	}
-
-}
 
 
 /* USER CODE END 4 */
