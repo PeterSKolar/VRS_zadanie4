@@ -203,13 +203,12 @@ void SysTick_Handler(void)
   */
 void DMA1_Channel6_IRQHandler(void)
 {
-	if(LL_DMA_IsActiveFlag_TC6(DMA1) == SET)
+	if(LL_DMA_IsActiveFlag_TC6(DMA1))
 	{
-		LL_DMA_ClearFlag_TC6(DMA1);
 		USART2_CheckDmaReception();
 
 	}
-	else if(LL_DMA_IsActiveFlag_HT6(DMA1) == SET)
+	else if(LL_DMA_IsActiveFlag_HT6(DMA1))
 	{
 		LL_DMA_ClearFlag_HT6(DMA1);
 		USART2_CheckDmaReception();
