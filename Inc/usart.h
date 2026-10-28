@@ -38,7 +38,9 @@
 void MX_USART2_UART_Init(void);
 void USART2_PutBuffer(uint8_t *buffer, uint8_t length);
 void USART2_CheckDmaReception(void);
-void USART2_RegisterCallback(void *callback);
+void USART2_RegisterCallback(void (*callback)(const uint8_t *data, uint16_t len));
+
+uint16_t USART2_GetDmaRxUsage(void);
 
 /* USER CODE BEGIN Prototypes */
 
