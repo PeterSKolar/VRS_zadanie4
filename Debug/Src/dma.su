@@ -1,0 +1,4 @@
+../Drivers/CMSIS/Include/core_cm4.h:1626:22:NVIC_EnableIRQ	16	static
+../Drivers/CMSIS/Include/core_cm4.h:1698:22:NVIC_SetPriority	16	static
+../Drivers/STM32F3xx_HAL_Driver/Inc/stm32f3xx_ll_bus.h:303:22:LL_AHB1_GRP1_EnableClock	24	static
+../Src/dma.c:37:6:MX_DMA_Init	8	static
